@@ -1,0 +1,6 @@
+{
+  "name": "INIP – Instituto de Investigação e Perícia",
+  "description": "Plataforma privada de gestão e acompanhamento de casos de investigação e perícia para centralização de envolvidos, diligências, evidências e conexões.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

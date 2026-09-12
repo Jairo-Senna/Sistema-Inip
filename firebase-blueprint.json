@@ -1,0 +1,208 @@
+{
+  "entities": {
+    "organization": {
+      "title": "Organization",
+      "description": "Tenant institution within the INIP platform",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "code": { "type": "string", "maxLength": 30 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "code"]
+    },
+    "userProfile": {
+      "title": "UserProfile",
+      "description": "User profile and role inside an organization",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 120 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "role": { "type": "string", "enum": ["admin", "investigator", "viewer"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["email", "displayName", "role", "active"]
+    },
+    "case": {
+      "title": "Case",
+      "description": "Investigation and forensic case file",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "code": { "type": "string", "maxLength": 50 },
+        "clientName": { "type": "string", "maxLength": 150 },
+        "openingDate": { "type": "string", "maxLength": 30 },
+        "priority": { "type": "string", "enum": ["baixa", "media", "alta", "urgente"] },
+        "status": { "type": "string", "enum": ["em_andamento", "aguardando_info", "em_analise", "suspenso", "concluido"] },
+        "description": { "type": "string", "maxLength": 5000 },
+        "objective": { "type": "string", "maxLength": 3000 },
+        "observations": { "type": "string", "maxLength": 5000 },
+        "contractedValue": { "type": "number" },
+        "receivedValue": { "type": "number" },
+        "pendingValue": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "financialNotes": { "type": "string", "maxLength": 2000 },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdByName": { "type": "string", "maxLength": 100 },
+        "updatedByUid": { "type": "string", "maxLength": 128 },
+        "updatedByName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "code", "clientName", "status", "priority", "createdByUid"]
+    },
+    "involved": {
+      "title": "InvolvedEntity",
+      "description": "Persons, companies or entities linked to the case",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["pessoa", "empresa", "instituicao", "contato", "local", "veiculo", "perfil_digital", "outro"] },
+        "name": { "type": "string", "maxLength": 150 },
+        "nickname": { "type": "string", "maxLength": 100 },
+        "classification": { "type": "string", "enum": ["principal", "possivel", "em_analise", "vitima", "testemunha", "informante", "outro"] },
+        "birthDate": { "type": "string", "maxLength": 30 },
+        "age": { "type": "number" },
+        "phone": { "type": "string", "maxLength": 50 },
+        "email": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 250 },
+        "occupation": { "type": "string", "maxLength": 100 },
+        "company": { "type": "string", "maxLength": 150 },
+        "corporateName": { "type": "string", "maxLength": 150 },
+        "fantasyName": { "type": "string", "maxLength": 150 },
+        "cnpj": { "type": "string", "maxLength": 30 },
+        "legalReps": { "type": "string", "maxLength": 250 },
+        "notes": { "type": "string", "maxLength": 3000 },
+        "additionalInfo": { "type": "string", "maxLength": 3000 },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["type", "name", "classification"]
+    },
+    "connection": {
+      "title": "CaseConnection",
+      "description": "Relationship between two involved entities in a case graph",
+      "type": "object",
+      "properties": {
+        "sourceId": { "type": "string", "maxLength": 128 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 50 },
+        "label": { "type": "string", "maxLength": 100 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["sourceId", "targetId", "type"]
+    },
+    "diligence": {
+      "title": "Diligence",
+      "description": "Investigative act or forensic diligence",
+      "type": "object",
+      "properties": {
+        "number": { "type": "string", "maxLength": 30 },
+        "date": { "type": "string", "maxLength": 30 },
+        "time": { "type": "string", "maxLength": 20 },
+        "type": { "type": "string", "maxLength": 100 },
+        "location": { "type": "string", "maxLength": 200 },
+        "participants": { "type": "string", "maxLength": 300 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "objective": { "type": "string", "maxLength": 2000 },
+        "result": { "type": "string", "maxLength": 3000 },
+        "observations": { "type": "string", "maxLength": 2000 },
+        "createdByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["number", "date", "type", "description"]
+    },
+    "caseFile": {
+      "title": "CaseFile",
+      "description": "Evidences, media, and documents metadata",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "maxLength": 100 },
+        "size": { "type": "number" },
+        "fileData": { "type": "string", "maxLength": 2000000 },
+        "category": { "type": "string", "enum": ["documento", "foto", "print", "audio", "video", "relatorio", "financeiro", "outro"] },
+        "description": { "type": "string", "maxLength": 1000 },
+        "relatedInvolvedId": { "type": "string", "maxLength": 128 },
+        "relatedDiligenceId": { "type": "string", "maxLength": 128 },
+        "uploadedByUid": { "type": "string", "maxLength": 128 },
+        "uploadedByName": { "type": "string", "maxLength": 100 },
+        "uploadedAt": { "type": "string" }
+      },
+      "required": ["name", "type", "category", "uploadedByUid"]
+    },
+    "payment": {
+      "title": "Payment",
+      "description": "Payment installment or deposit for the case contract",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "maxLength": 30 },
+        "value": { "type": "number" },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "observation": { "type": "string", "maxLength": 1000 },
+        "recordedByUid": { "type": "string", "maxLength": 128 },
+        "recordedByName": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["date", "value", "paymentMethod", "recordedByUid"]
+    },
+    "activityLog": {
+      "title": "ActivityLog",
+      "description": "Audit trail log for investigation actions",
+      "type": "object",
+      "properties": {
+        "userUid": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "userEmail": { "type": "string", "maxLength": 120 },
+        "actionType": { "type": "string", "maxLength": 50 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "affectedRecord": { "type": "string", "maxLength": 200 },
+        "previousValue": { "type": "string", "maxLength": 500 },
+        "newValue": { "type": "string", "maxLength": 500 },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["userUid", "userName", "actionType", "description", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/organizations/{orgId}": {
+      "schema": "organization",
+      "description": "Organization profile and settings"
+    },
+    "/organizations/{orgId}/users/{userId}": {
+      "schema": "userProfile",
+      "description": "User profile with role access in organization"
+    },
+    "/organizations/{orgId}/cases/{caseId}": {
+      "schema": "case",
+      "description": "Investigation cases"
+    },
+    "/organizations/{orgId}/cases/{caseId}/involved/{involvedId}": {
+      "schema": "involved",
+      "description": "Involved individuals or companies"
+    },
+    "/organizations/{orgId}/cases/{caseId}/connections/{connectionId}": {
+      "schema": "connection",
+      "description": "Graph connections between involved entities"
+    },
+    "/organizations/{orgId}/cases/{caseId}/diligences/{diligenceId}": {
+      "schema": "diligence",
+      "description": "Diligence reports"
+    },
+    "/organizations/{orgId}/cases/{caseId}/files/{fileId}": {
+      "schema": "caseFile",
+      "description": "Case attachments and evidence metadata"
+    },
+    "/organizations/{orgId}/cases/{caseId}/payments/{paymentId}": {
+      "schema": "payment",
+      "description": "Financial payments"
+    },
+    "/organizations/{orgId}/cases/{caseId}/activityLog/{logId}": {
+      "schema": "activityLog",
+      "description": "Immutable audit events"
+    }
+  }
+}
