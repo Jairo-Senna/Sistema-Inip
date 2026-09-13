@@ -65,10 +65,12 @@ export async function logCaseActivity(
 
 // 1. Cases Subscription
 export function subscribeToCases(callback: (cases: CaseData[]) => void) {
-  const q = query(getCasesRef(), orderBy('createdAt', 'desc'));
   const path = `organizations/${DEFAULT_ORG_ID}/cases`;
+  const q = query(getCasesRef(), orderBy('createdAt', 'desc'));
 
-  return onSnapshot(
+  let fallbackUnsub: (() => void) | null = null;
+
+  const unsub = onSnapshot(
     q,
     (snapshot) => {
       const cases: CaseData[] = [];
@@ -78,9 +80,29 @@ export function subscribeToCases(callback: (cases: CaseData[]) => void) {
       callback(cases);
     },
     (error) => {
-      console.warn(`Cases subscription error on ${path}:`, error);
+      console.warn(`Cases subscription error on ${path}, switching to unordered listener:`, error);
+      // Fallback listener without orderBy index requirement
+      fallbackUnsub = onSnapshot(
+        getCasesRef(),
+        (fallbackSnap) => {
+          const fallbackList: CaseData[] = [];
+          fallbackSnap.forEach((docSnap) => {
+            fallbackList.push({ id: docSnap.id, ...(docSnap.data() as Omit<CaseData, 'id'>) });
+          });
+          fallbackList.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+          callback(fallbackList);
+        },
+        (fallbackErr) => {
+          console.warn(`Fallback cases listener also failed on ${path}:`, fallbackErr);
+        }
+      );
     }
   );
+
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 // 2. Single Case Get
@@ -91,7 +113,8 @@ export async function getCaseById(caseId: string): Promise<CaseData | null> {
     if (!snap.exists()) return null;
     return { id: snap.id, ...(snap.data() as Omit<CaseData, 'id'>) };
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error getting case by id ${caseId}:`, error);
+    return null;
   }
 }
 
@@ -106,8 +129,19 @@ export async function getAllCases(): Promise<CaseData[]> {
     });
     return list;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
-    return [];
+    console.warn(`Ordered query failed on ${path}, trying unordered fallback:`, error);
+    try {
+      const snap = await getDocs(getCasesRef());
+      const list: CaseData[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as Omit<CaseData, 'id'>) });
+      });
+      list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      return list;
+    } catch (fallbackErr) {
+      console.warn(`Failed to fetch cases list on ${path}:`, fallbackErr);
+      return [];
+    }
   }
 }
 
@@ -155,8 +189,20 @@ export async function getDiligencesByCase(caseId: string): Promise<Diligence[]> 
     });
     return list;
   } catch (error) {
-    console.warn(`Error getting diligences on ${path}:`, error);
-    return [];
+    console.warn(`Ordered query for diligences failed on ${path}, trying unordered fallback:`, error);
+    try {
+      const colRef = collection(db, 'organizations', DEFAULT_ORG_ID, 'cases', caseId, 'diligences');
+      const snap = await getDocs(colRef);
+      const list: Diligence[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as Omit<Diligence, 'id'>) });
+      });
+      list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      return list;
+    } catch (fallbackErr) {
+      console.warn(`Fallback getting diligences failed on ${path}:`, fallbackErr);
+      return [];
+    }
   }
 }
 
@@ -172,8 +218,20 @@ export async function getFilesByCase(caseId: string): Promise<CaseFileItem[]> {
     });
     return list;
   } catch (error) {
-    console.warn(`Error getting files on ${path}:`, error);
-    return [];
+    console.warn(`Ordered query for files failed on ${path}, trying unordered fallback:`, error);
+    try {
+      const colRef = collection(db, 'organizations', DEFAULT_ORG_ID, 'cases', caseId, 'files');
+      const snap = await getDocs(colRef);
+      const list: CaseFileItem[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as Omit<CaseFileItem, 'id'>) });
+      });
+      list.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
+      return list;
+    } catch (fallbackErr) {
+      console.warn(`Fallback getting files failed on ${path}:`, fallbackErr);
+      return [];
+    }
   }
 }
 
@@ -475,7 +533,9 @@ export function subscribeToDiligences(caseId: string, callback: (items: Diligenc
   const path = `organizations/${DEFAULT_ORG_ID}/cases/${caseId}/diligences`;
   const q = query(colRef, orderBy('createdAt', 'desc'));
 
-  return onSnapshot(
+  let fallbackUnsub: (() => void) | null = null;
+
+  const unsub = onSnapshot(
     q,
     (snapshot) => {
       const list: Diligence[] = [];
@@ -485,9 +545,22 @@ export function subscribeToDiligences(caseId: string, callback: (items: Diligenc
       callback(list);
     },
     (error) => {
-      console.warn(`Diligences subscription warning on ${path}:`, error);
+      console.warn(`Diligences subscription warning on ${path}, trying unordered:`, error);
+      fallbackUnsub = onSnapshot(colRef, (snap) => {
+        const list: Diligence[] = [];
+        snap.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...(docSnap.data() as Omit<Diligence, 'id'>) });
+        });
+        list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        callback(list);
+      });
     }
   );
+
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 export async function addDiligence(
@@ -551,7 +624,9 @@ export function subscribeToFiles(caseId: string, callback: (items: CaseFileItem[
   const path = `organizations/${DEFAULT_ORG_ID}/cases/${caseId}/files`;
   const q = query(colRef, orderBy('uploadedAt', 'desc'));
 
-  return onSnapshot(
+  let fallbackUnsub: (() => void) | null = null;
+
+  const unsub = onSnapshot(
     q,
     (snapshot) => {
       const list: CaseFileItem[] = [];
@@ -561,9 +636,22 @@ export function subscribeToFiles(caseId: string, callback: (items: CaseFileItem[
       callback(list);
     },
     (error) => {
-      console.warn(`Files subscription warning on ${path}:`, error);
+      console.warn(`Files subscription warning on ${path}, trying unordered:`, error);
+      fallbackUnsub = onSnapshot(colRef, (snap) => {
+        const list: CaseFileItem[] = [];
+        snap.forEach((docSnap) => {
+          list.push({ id: docSnap.id, ...(docSnap.data() as Omit<CaseFileItem, 'id'>) });
+        });
+        list.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
+        callback(list);
+      });
     }
   );
+
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 export async function addCaseFile(

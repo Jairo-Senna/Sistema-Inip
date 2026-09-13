@@ -267,7 +267,7 @@ export const FilesTab: React.FC<FilesTabProps> = ({
             id="btn-new-file"
           >
             <UploadCloud className="w-4 h-4" />
-            <span>+ ANEXAR EVIDÊNCIA</span>
+            <span>ANEXAR EVIDÊNCIA</span>
           </button>
         )}
       </div>

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { CaseData, CaseStatus, CasePriority } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { getAllCases } from '../services/casesService';
+import { getAllCases, subscribeToCases } from '../services/casesService';
 import { getEffectiveLogoUrl, DEFAULT_INIP_LOGO } from '../utils/logo';
 
 interface DashboardPageProps {
@@ -62,20 +62,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     }
   };
 
-  const fetchCases = async () => {
-    setLoading(true);
-    try {
-      const list = await getAllCases();
-      setCases(list);
-    } catch (err) {
-      console.error('Error fetching cases:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchCases();
+    setLoading(true);
+    const unsubscribe = subscribeToCases((list) => {
+      setCases(list);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Metrics calculation
@@ -409,7 +405,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 id="btn-main-new-case"
               >
                 <Plus className="w-4 h-4" />
-                <span>+ NOVO CASO</span>
+                <span>NOVO CASO</span>
               </button>
             )}
           </div>

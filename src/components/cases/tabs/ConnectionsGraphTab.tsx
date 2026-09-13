@@ -400,7 +400,7 @@ export const ConnectionsGraphTab: React.FC<ConnectionsGraphTabProps> = ({
             id="btn-new-connection"
           >
             <Plus className="w-4 h-4" />
-            <span>+ NOVA CONEXÃO</span>
+            <span>NOVA CONEXÃO</span>
           </button>
         )}
       </div>

@@ -341,7 +341,7 @@ export const InvolvedTab: React.FC<InvolvedTabProps> = ({
             id="btn-new-involved"
           >
             <Plus className="w-4 h-4" />
-            <span>+ NOVO ENVOLVIDO</span>
+            <span>NOVO ENVOLVIDO</span>
           </button>
         )}
       </div>

@@ -161,7 +161,7 @@ export const DiligencesTab: React.FC<DiligencesTabProps> = ({
             id="btn-new-diligence"
           >
             <Plus className="w-4 h-4" />
-            <span>+ NOVA DILIGÊNCIA</span>
+            <span>NOVA DILIGÊNCIA</span>
           </button>
         )}
       </div>

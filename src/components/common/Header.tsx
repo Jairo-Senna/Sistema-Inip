@@ -11,7 +11,8 @@ import {
   Users, 
   ChevronDown,
   UploadCloud,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { InipLogo } from './InipLogo';
@@ -222,7 +223,8 @@ export const Header: React.FC<HeaderProps> = ({
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-white bg-sky-600 hover:bg-sky-500 active:bg-sky-700 rounded-lg shadow-sm hover:shadow transition"
               id="btn-header-new-case"
             >
-              <span>+ NOVO CASO</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>NOVO CASO</span>
             </button>
           )}
 
