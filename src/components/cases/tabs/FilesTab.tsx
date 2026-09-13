@@ -10,11 +10,16 @@ import {
   Music, 
   Video, 
   Paperclip, 
-  DollarSign
+  DollarSign,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { CaseFileItem, FileCategory, CaseData, InvolvedEntity, Diligence } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { addCaseFile, deleteCaseFile } from '../../../services/casesService';
+import { compressImage, isImageFile, formatBytes, CompressionResult } from '../../../utils/imageCompressor';
 
 interface FilesTabProps {
   caseData: CaseData;
@@ -48,21 +53,67 @@ export const FilesTab: React.FC<FilesTabProps> = ({
   const [relatedDiligenceId, setRelatedDiligenceId] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Auto-compression states
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
+  const [fileWarning, setFileWarning] = useState<string | null>(null);
+
   const allowedToEdit = canModifyCase(caseData.status);
 
-  const handleFileSelect = (file: File) => {
+  const resetUploadModal = () => {
+    setUploadModalOpen(false);
+    setSelectedFileObj(null);
+    setFileName('');
+    setDescription('');
+    setRelatedInvolvedId('');
+    setRelatedDiligenceId('');
+    setIsCompressing(false);
+    setCompressionResult(null);
+    setFileWarning(null);
+  };
+
+  const handleFileSelect = async (file: File) => {
     setSelectedFileObj(file);
     setFileName(file.name);
+    setCompressionResult(null);
+    setFileWarning(null);
+
     // Guess category from extension
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'].includes(ext || '')) {
+    const isImage = isImageFile(file);
+
+    if (isImage) {
       setCategory('foto');
-    } else if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext || '')) {
-      setCategory('audio');
-    } else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext || '')) {
-      setCategory('video');
-    } else if (['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(ext || '')) {
-      setCategory('documento');
+      setIsCompressing(true);
+      try {
+        // High-definition compression: max 1600px width/height, 82% quality JPEG
+        const result = await compressImage(file, {
+          maxWidth: 1600,
+          maxHeight: 1600,
+          quality: 0.82,
+          mimeType: 'image/jpeg',
+        });
+        setCompressionResult(result);
+      } catch (err) {
+        console.warn('Falha na compressão automática, usando arquivo original:', err);
+      } finally {
+        setIsCompressing(false);
+      }
+    } else {
+      if (['mp3', 'wav', 'ogg', 'm4a', 'aac'].includes(ext || '')) {
+        setCategory('audio');
+      } else if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext || '')) {
+        setCategory('video');
+      } else if (['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx'].includes(ext || '')) {
+        setCategory('documento');
+      }
+
+      // Check size limit for non-image files (Firestore document safe threshold: ~800KB)
+      if (file.size > 850 * 1024) {
+        setFileWarning(
+          `Atenção: Este arquivo possui ${formatBytes(file.size)}. Arquivos não-fotográficos acima de 800 KB podem exceder o limite de gravação direta. Para arquivos grandes ou vídeos longos, cole o link do Google Drive/OneDrive na descrição.`
+        );
+      }
     }
   };
 
@@ -81,9 +132,16 @@ export const FilesTab: React.FC<FilesTabProps> = ({
     setLoading(true);
     try {
       let fileDataString = '';
+      let finalSize = selectedFileObj ? selectedFileObj.size : 204800;
+      let finalType = selectedFileObj ? selectedFileObj.type : 'application/octet-stream';
 
-      if (selectedFileObj) {
-        // Read as Data URL
+      if (compressionResult) {
+        // Use auto-compressed image data URL
+        fileDataString = compressionResult.dataUrl;
+        finalSize = compressionResult.compressedSize;
+        finalType = 'image/jpeg';
+      } else if (selectedFileObj) {
+        // Read as standard Data URL
         fileDataString = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (ev) => resolve((ev.target?.result as string) || '');
@@ -100,21 +158,19 @@ export const FilesTab: React.FC<FilesTabProps> = ({
           category,
           description: description.trim(),
           fileData: fileDataString,
-          size: selectedFileObj ? selectedFileObj.size : 204800,
-          type: selectedFileObj ? selectedFileObj.type : 'application/octet-stream',
+          size: finalSize,
+          type: finalType,
           relatedInvolvedId: relatedInvolvedId || undefined,
           relatedDiligenceId: relatedDiligenceId || undefined,
         },
         userProfile
       );
 
-      setUploadModalOpen(false);
-      setSelectedFileObj(null);
-      setFileName('');
-      setDescription('');
+      resetUploadModal();
       onRefresh();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload error:', err);
+      alert('Erro ao salvar arquivo: ' + (err?.message || 'Verifique a conexão com a base de dados.'));
     } finally {
       setLoading(false);
     }
@@ -372,9 +428,66 @@ export const FilesTab: React.FC<FilesTabProps> = ({
                   {selectedFileObj ? selectedFileObj.name : 'Arraste o arquivo aqui ou clique para selecionar'}
                 </p>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Suporta Fotos, PDFs, Áudios, Vídeos, Planilhas e Documentos
+                  Fotos recebem otimização automática inteligente (sem perda forense)
                 </p>
               </div>
+
+              {/* Compression Progress Indicator */}
+              {isCompressing && (
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 rounded-xl flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-sky-500 animate-spin flex-shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-semibold text-sky-900 dark:text-sky-300">
+                      Otimizando imagem no navegador...
+                    </p>
+                    <p className="text-[11px] text-sky-700/80 dark:text-sky-400/80">
+                      Reduzindo peso mantendo nitidez pericial para gravação segura.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Compression Success Card */}
+              {compressionResult && !isCompressing && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center gap-3">
+                  <img
+                    src={compressionResult.dataUrl}
+                    alt="Preview otimizado"
+                    className="w-14 h-14 object-cover rounded-lg border border-emerald-300 dark:border-emerald-700 flex-shrink-0 bg-slate-900"
+                  />
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-300">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Foto otimizada com sucesso!
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">
+                      <span className="line-through opacity-70">
+                        {formatBytes(compressionResult.originalSize)}
+                      </span>
+                      <span>➔</span>
+                      <span className="font-bold text-emerald-900 dark:text-emerald-200">
+                        {formatBytes(compressionResult.compressedSize)}
+                      </span>
+                      <span className="px-1.5 py-0.2 bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 rounded font-semibold text-[10px]">
+                        -{compressionResult.reductionRatio}%
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-emerald-600/90 dark:text-emerald-500/90 mt-0.5">
+                      Resolução: {compressionResult.width} × {compressionResult.height}px
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Heavy File Warning */}
+              {fileWarning && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-tight">
+                    {fileWarning}
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">

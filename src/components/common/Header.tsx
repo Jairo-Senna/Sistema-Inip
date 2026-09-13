@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { InipLogo } from './InipLogo';
+import { compressImage } from '../../utils/imageCompressor';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -89,15 +90,26 @@ export const Header: React.FC<HeaderProps> = ({
     setSettingsModalOpen(false);
   };
 
-  const handleFileLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const b64 = ev.target?.result as string;
-        setTempLogoUrl(b64);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const result = await compressImage(file, {
+          maxWidth: 400,
+          maxHeight: 400,
+          quality: 0.85,
+          mimeType: 'image/png',
+        });
+        setTempLogoUrl(result.dataUrl);
+      } catch (err) {
+        console.warn('Erro na compressão do logo, usando leitor padrão:', err);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const b64 = ev.target?.result as string;
+          setTempLogoUrl(b64);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
