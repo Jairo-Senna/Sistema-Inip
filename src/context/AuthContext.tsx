@@ -10,8 +10,9 @@ import {
   updateProfile
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, googleProvider, DEFAULT_ORG_ID, handleFirestoreError, OperationType } from '../services/firebase';
+import { auth, db, googleProvider, DEFAULT_ORG_ID, handleFirestoreError, OperationType, cleanFirestoreData } from '../services/firebase';
 import { UserProfile, UserRole } from '../types';
+import { syncUserToDirectory, getOrganizationMembers, SUPER_ADMIN_EMAIL } from '../services/userService';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -35,8 +36,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SUPER_ADMIN_EMAIL = 'jairosenna14@gmail.com';
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -48,14 +47,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const snap = await getDoc(userDocRef);
+      // Also check directory to honor administrative promotions
+      let directoryRole: UserRole | undefined;
+      let directoryActive: boolean | undefined;
+      try {
+        const directoryMembers = await getOrganizationMembers();
+        const found = directoryMembers.find(
+          (m) => (m.email && user.email && m.email.toLowerCase() === user.email.toLowerCase()) || m.uid === user.uid
+        );
+        if (found) {
+          directoryRole = found.role;
+          directoryActive = found.active;
+        }
+      } catch {
+        // Safe fallback
+      }
+
       if (snap.exists()) {
         const data = snap.data() as UserProfile;
-        // Check if user is super admin email, ensure admin role
-        if (user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase() && data.role !== 'admin') {
-          await setDoc(userDocRef, { ...data, role: 'admin' }, { merge: true });
-          return { ...data, role: 'admin' };
+        const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+        const effectiveRole: UserRole = isSuperAdmin ? 'admin' : (directoryRole || data.role || 'investigator');
+        const effectiveActive = directoryActive !== undefined ? directoryActive : (data.active !== false);
+
+        const mergedProfile: UserProfile = {
+          ...data,
+          uid: user.uid,
+          email: user.email || data.email,
+          displayName: user.displayName || data.displayName || 'Agente INIP',
+          role: effectiveRole,
+          active: effectiveActive,
+        };
+
+        // If changed, persist back
+        if (data.role !== effectiveRole || data.active !== effectiveActive) {
+          try {
+            await setDoc(userDocRef, cleanFirestoreData(mergedProfile), { merge: true });
+          } catch {
+            // non-fatal
+          }
         }
-        return data;
+
+        // Sync with central directory
+        syncUserToDirectory(mergedProfile).catch(() => {});
+        return mergedProfile;
       } else {
         const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
         const newProfile: UserProfile = {
@@ -63,34 +97,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: user.email || '',
           displayName: user.displayName || user.email?.split('@')[0] || 'Agente INIP',
           photoURL: user.photoURL || '',
-          role: isSuperAdmin ? 'admin' : 'investigator',
+          role: isSuperAdmin ? 'admin' : (directoryRole || 'investigator'),
           badgeNumber: `INIP-${Math.floor(1000 + Math.random() * 9000)}`,
-          department: 'Divisão de Investigações Especiais',
-          active: true,
+          department: 'Divisão de Investigações e Perícias',
+          active: directoryActive !== undefined ? directoryActive : true,
           createdAt: new Date().toISOString(),
         };
 
-        await setDoc(userDocRef, {
-          ...newProfile,
-          serverCreatedAt: serverTimestamp(),
-        });
+        try {
+          await setDoc(userDocRef, {
+            ...newProfile,
+            serverCreatedAt: serverTimestamp(),
+          });
+        } catch {
+          // non-fatal
+        }
 
         // Also record in admins collection if super admin
-        if (isSuperAdmin) {
+        if (newProfile.role === 'admin') {
           try {
             await setDoc(doc(db, 'admins', user.uid), {
               email: user.email,
               grantedAt: new Date().toISOString(),
-            });
+            }, { merge: true });
           } catch {
             // non-fatal if rules handle via email
           }
         }
 
+        // Sync with central directory
+        syncUserToDirectory(newProfile).catch(() => {});
         return newProfile;
       }
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, path);
+      console.warn('Erro ao carregar perfil do usuário:', err);
+      const isSuperAdmin = user.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+      const fallbackProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.email?.split('@')[0] || 'Agente INIP',
+        role: isSuperAdmin ? 'admin' : 'investigator',
+        badgeNumber: 'INIP-OPERACIONAL',
+        department: 'Divisão de Investigações e Perícias',
+        active: true,
+        createdAt: new Date().toISOString(),
+      };
+      syncUserToDirectory(fallbackProfile).catch(() => {});
+      return fallbackProfile;
     }
   };
 
@@ -174,7 +227,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date().toISOString(),
       };
 
-      await setDoc(doc(db, 'organizations', DEFAULT_ORG_ID, 'users', result.user.uid), newProfile);
+      try {
+        await setDoc(doc(db, 'organizations', DEFAULT_ORG_ID, 'users', result.user.uid), newProfile);
+      } catch {
+        // non-fatal
+      }
+      await syncUserToDirectory(newProfile);
       setUserProfile(newProfile);
     } finally {
       setLoading(false);

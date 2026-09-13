@@ -3,25 +3,28 @@ import {
   X, 
   Users, 
   Shield, 
-  UserCheck, 
   CheckCircle, 
-  XCircle, 
   Loader2, 
-  AlertCircle,
-  UserPlus,
-  Lock,
-  Mail,
-  KeyRound,
-  BadgeAlert,
-  Search,
-  Check,
-  Briefcase,
-  RefreshCw
+  AlertCircle, 
+  UserPlus, 
+  Mail, 
+  KeyRound, 
+  Search, 
+  Check, 
+  RefreshCw,
+  UserCheck,
+  Plus
 } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, DEFAULT_ORG_ID } from '../../services/firebase';
 import { UserProfile, UserRole } from '../../types';
-import { createMemberUser, updateUserRole, toggleUserStatus, SUPER_ADMIN_EMAIL } from '../../services/userService';
+import { 
+  createMemberUser, 
+  updateUserRole, 
+  toggleUserStatus, 
+  SUPER_ADMIN_EMAIL,
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  addExistingMemberToDirectory
+} from '../../services/userService';
 
 interface UsersManagementModalProps {
   isOpen: boolean;
@@ -39,6 +42,12 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Quick link existing member states
+  const [showAddExisting, setShowAddExisting] = useState(false);
+  const [existingEmail, setExistingEmail] = useState('');
+  const [existingName, setExistingName] = useState('');
+  const [linkingExisting, setLinkingExisting] = useState(false);
+
   // New user form states
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -52,33 +61,32 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'organizations', DEFAULT_ORG_ID, 'users'));
-      const list: UserProfile[] = [];
-      snap.forEach((d) => {
-        list.push({ uid: d.id, ...(d.data() as Omit<UserProfile, 'uid'>) });
-      });
-      // Sort: Admins first, then by name
-      list.sort((a, b) => {
-        if (a.role === 'admin' && b.role !== 'admin') return -1;
-        if (a.role !== 'admin' && b.role === 'admin') return 1;
-        return (a.displayName || '').localeCompare(b.displayName || '');
-      });
+      const list = await getOrganizationMembers();
       setUsers(list);
     } catch (err: any) {
       console.error('Fetch users error:', err);
-      setErrorMsg('Falha ao carregar relação de integrantes: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchUsers();
-      setErrorMsg(null);
-      setSuccessMsg(null);
-      setCreatedCredential(null);
-    }
+    if (!isOpen) return;
+
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setCreatedCredential(null);
+    setLoading(true);
+
+    // Real-time synchronization
+    const unsubscribe = subscribeToOrganizationMembers((members) => {
+      setUsers(members);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [isOpen]);
 
   const handleRoleChange = async (uid: string, newRole: UserRole, userEmail?: string) => {
@@ -87,7 +95,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
     try {
       await updateUserRole(uid, newRole, userEmail);
       setUsers((prev) =>
-        prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u))
+        prev.map((u) => (u.uid === uid || (userEmail && u.email.toLowerCase() === userEmail.toLowerCase()) ? { ...u, role: newRole } : u))
       );
       setSuccessMsg(`Perfil de acesso atualizado para "${newRole === 'admin' ? 'Administrador' : newRole === 'investigator' ? 'Usuário Normal' : 'Consulta'}".`);
     } catch (err: any) {
@@ -101,11 +109,41 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
     try {
       const updatedActive = await toggleUserStatus(uid, currentActive, userEmail);
       setUsers((prev) =>
-        prev.map((u) => (u.uid === uid ? { ...u, active: updatedActive } : u))
+        prev.map((u) => (u.uid === uid || (userEmail && u.email.toLowerCase() === userEmail.toLowerCase()) ? { ...u, active: updatedActive } : u))
       );
       setSuccessMsg(`Usuário ${updatedActive ? 'ativado' : 'desativado'} com sucesso.`);
     } catch (err: any) {
       setErrorMsg('Falha ao alterar status do usuário: ' + err.message);
+    }
+  };
+
+  const handleLinkExistingMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!existingEmail.trim() || !existingEmail.includes('@')) {
+      setErrorMsg('Informe um e-mail válido para vincular o integrante.');
+      return;
+    }
+
+    setLinkingExisting(true);
+    try {
+      const added = await addExistingMemberToDirectory({
+        email: existingEmail.trim().toLowerCase(),
+        displayName: existingName.trim() || undefined,
+        role: 'investigator',
+      });
+
+      setSuccessMsg(`Integrante "${added.email}" vinculado com sucesso à relação! Agora você pode gerenciar seu acesso ou torná-lo Administrador.`);
+      setExistingEmail('');
+      setExistingName('');
+      setShowAddExisting(false);
+      await fetchUsers();
+    } catch (err: any) {
+      setErrorMsg('Erro ao vincular integrante: ' + (err.message || err));
+    } finally {
+      setLinkingExisting(false);
     }
   };
 
@@ -189,11 +227,11 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 Controle de Usuários & Níveis de Acesso
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-sky-100 dark:bg-sky-950/80 text-sky-700 dark:text-sky-300 font-bold">
-                  RBAC INIP
+                  {users.length} {users.length === 1 ? 'Integrante' : 'Integrantes'}
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Gerencie quem é Administrador e quem é Usuário Normal com permissões operacionais restritas.
+                Visualize todos os membros cadastrados, defina administradores e controle o acesso ao sistema.
               </p>
             </div>
           </div>
@@ -246,7 +284,7 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
               onClick={fetchUsers}
               className="px-2.5 py-1 text-[11px] font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-300 rounded-lg transition whitespace-nowrap"
             >
-              Tentar novamente
+              Recarregar
             </button>
           </div>
         )}
@@ -265,39 +303,66 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
             <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-sky-500/10 to-transparent border border-amber-500/20 dark:border-amber-500/30 text-xs space-y-2">
               <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white">
                 <Shield className="w-4 h-4 text-amber-500" />
-                <span>Fluxo de Credenciamento de Administradores:</span>
+                <span>Como Promover Integrantes a Administrador:</span>
               </div>
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-[11px]">
-                <strong>1.</strong> Peça para o novo integrante se cadastrar na tela inicial (ele entrará automaticamente como <strong>Usuário Normal</strong>).<br />
-                <strong>2.</strong> Localize o integrante na lista abaixo e clique em <span className="font-bold text-amber-700 dark:text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">Ativar Administrador</span>.<br />
-                <strong>3.</strong> O integrante passará a ter acesso total (registro de novos casos, finanças e exclusão de itens incorretos).
+                <strong>1.</strong> Todos os usuários cadastrados aparecem listados abaixo na tabela de integrantes.<br />
+                <strong>2.</strong> Para conceder acesso total de administrador a um usuário comum, basta clicar no botão <span className="font-bold text-amber-700 dark:text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/30">Ativar Administrador</span> na coluna de permissões.<br />
+                <strong>3.</strong> O integrante passará a ter permissões de criar casos, gerenciar finanças e excluir registros.
               </p>
             </div>
 
-            {/* Rule explanation banner */}
-            <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1 flex-shrink-0" />
-                <div>
-                  <strong className="text-slate-800 dark:text-slate-200 font-bold block text-xs">
-                    Perfil Administrador
-                  </strong>
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed block">
-                    Acesso pleno: cadastra novos casos, gerencia finanças e é o <strong>único autorizado a apagar dados</strong>.
+            {/* Quick Link Existing Member Bar */}
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-sky-500" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Vincular Integrante Existente por E-mail
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddExisting(!showAddExisting)}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline"
+                >
+                  <Plus className={`w-3.5 h-3.5 transition-transform ${showAddExisting ? 'rotate-45' : ''}`} />
+                  {showAddExisting ? 'Fechar' : 'Adicionar por e-mail'}
+                </button>
               </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-sky-500 mt-1 flex-shrink-0" />
-                <div>
-                  <strong className="text-slate-800 dark:text-slate-200 font-bold block text-xs">
-                    Perfil Usuário Normal (Investigador Operacional)
-                  </strong>
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed block">
-                    Alimenta diligências e evidências. <strong>Não cadastra novos casos, não mexe em finanças e não pode apagar informações</strong>.
-                  </span>
-                </div>
-              </div>
+
+              {showAddExisting && (
+                <form onSubmit={handleLinkExistingMember} className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/60 grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-6">
+                    <input
+                      type="email"
+                      required
+                      value={existingEmail}
+                      onChange={(e) => setExistingEmail(e.target.value)}
+                      placeholder="E-mail do usuário já cadastrado..."
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <input
+                      type="text"
+                      value={existingName}
+                      onChange={(e) => setExistingName(e.target.value)}
+                      placeholder="Nome do integrante (opcional)"
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <button
+                      type="submit"
+                      disabled={linkingExisting}
+                      className="w-full py-1.5 px-3 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition"
+                    >
+                      {linkingExisting ? 'Vinculando...' : 'Vincular'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
 
             {/* Search Input & Refresh */}
