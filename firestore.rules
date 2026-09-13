@@ -2,11 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default Deny All
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
     // Health / connection test
     match /test/{docId} {
       allow read: if true;
@@ -16,82 +11,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'jairosenna14@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
-    }
-
-    function isOrgAdmin(orgId) {
-      return isSuperAdmin() || (
-        isSignedIn() &&
-        exists(/databases/$(database)/documents/organizations/$(orgId)/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/organizations/$(orgId)/users/$(request.auth.uid)).data.role == 'admin'
-      );
-    }
-
-    // Admins reference collection
-    match /admins/{adminId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-    }
-
-    // Organization scope
-    match /organizations/{orgId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
-
-      // Users within organization
-      match /users/{userId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && (request.auth.uid == userId || isOrgAdmin(orgId));
-        allow delete: if isOrgAdmin(orgId);
-      }
-
-      // Cases within organization
-      match /cases/{caseId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn();
-        allow delete: if isOrgAdmin(orgId);
-
-        // Subcollections of Case
-        match /involved/{involvedId} {
-          allow read: if isSignedIn();
-          allow create, update: if isSignedIn();
-          allow delete: if isOrgAdmin(orgId);
-        }
-
-        match /connections/{connectionId} {
-          allow read: if isSignedIn();
-          allow create, update: if isSignedIn();
-          allow delete: if isOrgAdmin(orgId);
-        }
-
-        match /diligences/{diligenceId} {
-          allow read: if isSignedIn();
-          allow create, update: if isSignedIn();
-          allow delete: if isOrgAdmin(orgId);
-        }
-
-        match /files/{fileId} {
-          allow read: if isSignedIn();
-          allow create, update: if isSignedIn();
-          allow delete: if isOrgAdmin(orgId);
-        }
-
-        match /payments/{paymentId} {
-          allow read: if isSignedIn();
-          allow create, update, delete: if isSignedIn();
-        }
-
-        // Immutable Audit Trail
-        match /activityLog/{logId} {
-          allow read: if isSignedIn();
-          allow create: if isSignedIn();
-          allow update, delete: if false;
-        }
-      }
+    // All collections and subcollections accessible to authenticated users
+    match /{document=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }
+
+

@@ -15,7 +15,8 @@ import {
   BadgeAlert,
   Search,
   Check,
-  Briefcase
+  Briefcase,
+  RefreshCw
 } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, DEFAULT_ORG_ID } from '../../services/firebase';
@@ -235,9 +236,18 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
 
         {/* Feedback Messages */}
         {errorMsg && (
-          <div className="m-6 mb-0 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="m-6 mb-0 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+            <button
+              type="button"
+              onClick={fetchUsers}
+              className="px-2.5 py-1 text-[11px] font-semibold bg-rose-500/20 hover:bg-rose-500/30 text-rose-600 dark:text-rose-300 rounded-lg transition whitespace-nowrap"
+            >
+              Tentar novamente
+            </button>
           </div>
         )}
 
@@ -290,16 +300,27 @@ export const UsersManagementModal: React.FC<UsersManagementModalProps> = ({
               </div>
             </div>
 
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por nome, e-mail, matrícula ou perfil..."
-                className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
-              />
+            {/* Search Input & Refresh */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nome, e-mail, matrícula ou perfil..."
+                  className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={fetchUsers}
+                disabled={loading}
+                title="Atualizar lista de integrantes"
+                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition border border-slate-200 dark:border-slate-700 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
 
             {loading ? (

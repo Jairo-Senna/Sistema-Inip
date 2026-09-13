@@ -160,8 +160,8 @@ export const FilesTab: React.FC<FilesTabProps> = ({
           fileData: fileDataString,
           size: finalSize,
           type: finalType,
-          relatedInvolvedId: relatedInvolvedId || undefined,
-          relatedDiligenceId: relatedDiligenceId || undefined,
+          ...(relatedInvolvedId.trim() ? { relatedInvolvedId: relatedInvolvedId.trim() } : {}),
+          ...(relatedDiligenceId.trim() ? { relatedDiligenceId: relatedDiligenceId.trim() } : {}),
         },
         userProfile
       );
@@ -170,7 +170,14 @@ export const FilesTab: React.FC<FilesTabProps> = ({
       onRefresh();
     } catch (err: any) {
       console.error('Upload error:', err);
-      alert('Erro ao salvar arquivo: ' + (err?.message || 'Verifique a conexão com a base de dados.'));
+      let errorMsg = err?.message || 'Falha ao processar arquivo.';
+      try {
+        const parsed = JSON.parse(errorMsg);
+        if (parsed?.error) errorMsg = parsed.error;
+      } catch {
+        // not json, keep original message
+      }
+      alert('Erro ao salvar evidência: ' + errorMsg);
     } finally {
       setLoading(false);
     }

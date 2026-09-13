@@ -63,27 +63,47 @@ export const Header: React.FC<HeaderProps> = ({
     else if (onOpenUserManagement) onOpenUserManagement();
   };
 
+  const currentDark = isDark !== undefined ? isDark : darkMode;
+
   useEffect(() => {
-    const isDark = document.documentElement.classList.contains('dark') || 
-      (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
-      localStorage.getItem('inip-theme') !== 'light';
-    setDarkMode(isDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    if (isDark !== undefined) {
+      setDarkMode(isDark);
     }
-  }, []);
+  }, [isDark]);
+
+  useEffect(() => {
+    if (isDark === undefined) {
+      const activeDark = document.documentElement.classList.contains('dark') || 
+        (!('inip_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
+        localStorage.getItem('inip_theme') !== 'light';
+      setDarkMode(activeDark);
+      if (activeDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, [isDark]);
 
   const toggleTheme = () => {
     const next = !darkMode;
     setDarkMode(next);
     if (next) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('inip_theme', 'dark');
       localStorage.setItem('inip-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('inip_theme', 'light');
       localStorage.setItem('inip-theme', 'light');
+    }
+  };
+
+  const handleToggleTheme = () => {
+    if (onToggleTheme) {
+      onToggleTheme();
+    } else {
+      toggleTheme();
     }
   };
 
@@ -208,12 +228,13 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Dark Mode Toggle */}
           <button
-            onClick={onToggleTheme || toggleTheme}
+            onClick={handleToggleTheme}
             className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
-            title={darkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+            title={currentDark ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
             aria-label="Theme toggle"
+            id="btn-header-theme-toggle"
           >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+            {currentDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />}
           </button>
 
           {/* User Profile Dropdown */}

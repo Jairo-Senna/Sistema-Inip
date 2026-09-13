@@ -33,7 +33,11 @@ import {
   getConnectionsByCase, 
   getDiligencesByCase, 
   getFilesByCase,
-  deleteCase
+  deleteCase,
+  subscribeToInvolved,
+  subscribeToConnections,
+  subscribeToDiligences,
+  subscribeToFiles
 } from '../services/casesService';
 
 import { OverviewTab } from '../components/cases/tabs/OverviewTab';
@@ -122,6 +126,30 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
 
   useEffect(() => {
     loadAllData();
+  }, [caseId]);
+
+  // Real-time synchronization for subcollections so all tabs update immediately
+  useEffect(() => {
+    if (!caseId) return;
+    const unsubInvolved = subscribeToInvolved(caseId, (items) => {
+      setInvolved(items);
+    });
+    const unsubConn = subscribeToConnections(caseId, (items) => {
+      setConnections(items);
+    });
+    const unsubDil = subscribeToDiligences(caseId, (items) => {
+      setDiligences(items);
+    });
+    const unsubFiles = subscribeToFiles(caseId, (items) => {
+      setFiles(items);
+    });
+
+    return () => {
+      unsubInvolved();
+      unsubConn();
+      unsubDil();
+      unsubFiles();
+    };
   }, [caseId]);
 
   useEffect(() => {

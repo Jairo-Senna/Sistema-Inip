@@ -10,7 +10,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { db, DEFAULT_ORG_ID, handleFirestoreError, OperationType } from './firebase';
+import { db, DEFAULT_ORG_ID, handleFirestoreError, OperationType, cleanFirestoreData } from './firebase';
 import {
   CaseData,
   InvolvedEntity,
@@ -56,7 +56,7 @@ export async function logCaseActivity(
       timestamp: new Date().toISOString(),
     };
 
-    await setDoc(logDoc, logItem);
+    await setDoc(logDoc, cleanFirestoreData(logItem));
   } catch (err) {
     console.error('Audit log write error:', err);
     // don't break flow on audit error
@@ -78,7 +78,7 @@ export function subscribeToCases(callback: (cases: CaseData[]) => void) {
       callback(cases);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Cases subscription error on ${path}:`, error);
     }
   );
 }
@@ -122,7 +122,7 @@ export async function getInvolvedByCase(caseId: string): Promise<InvolvedEntity[
     });
     return list;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error getting involved on ${path}:`, error);
     return [];
   }
 }
@@ -138,7 +138,7 @@ export async function getConnectionsByCase(caseId: string): Promise<CaseConnecti
     });
     return list;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error getting connections on ${path}:`, error);
     return [];
   }
 }
@@ -155,7 +155,7 @@ export async function getDiligencesByCase(caseId: string): Promise<Diligence[]> 
     });
     return list;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error getting diligences on ${path}:`, error);
     return [];
   }
 }
@@ -172,7 +172,7 @@ export async function getFilesByCase(caseId: string): Promise<CaseFileItem[]> {
     });
     return list;
   } catch (error) {
-    handleFirestoreError(error, OperationType.GET, path);
+    console.warn(`Error getting files on ${path}:`, error);
     return [];
   }
 }
@@ -205,7 +205,7 @@ export async function createCase(
   };
 
   try {
-    await setDoc(getCaseDocRef(caseId), newCase);
+    await setDoc(getCaseDocRef(caseId), cleanFirestoreData(newCase));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -243,7 +243,7 @@ export async function updateCase(
   };
 
   try {
-    await updateDoc(getCaseDocRef(caseId), finalUpdates);
+    await updateDoc(getCaseDocRef(caseId), cleanFirestoreData(finalUpdates));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -311,7 +311,7 @@ export function subscribeToInvolved(caseId: string, callback: (items: InvolvedEn
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Involved subscription warning on ${path}:`, error);
     }
   );
 }
@@ -334,7 +334,7 @@ export async function addInvolved(
   };
 
   try {
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanFirestoreData(data));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -358,10 +358,10 @@ export async function updateInvolved(
   const docRef = doc(db, 'organizations', DEFAULT_ORG_ID, 'cases', caseId, 'involved', involvedId);
 
   try {
-    await updateDoc(docRef, {
+    await updateDoc(docRef, cleanFirestoreData({
       ...updates,
       updatedAt: new Date().toISOString(),
-    });
+    }));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -412,7 +412,7 @@ export function subscribeToConnections(caseId: string, callback: (items: CaseCon
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Connections subscription warning on ${path}:`, error);
     }
   );
 }
@@ -433,7 +433,7 @@ export async function addConnection(
   };
 
   try {
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanFirestoreData(data));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -485,7 +485,7 @@ export function subscribeToDiligences(caseId: string, callback: (items: Diligenc
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Diligences subscription warning on ${path}:`, error);
     }
   );
 }
@@ -508,7 +508,7 @@ export async function addDiligence(
   };
 
   try {
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanFirestoreData(data));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -561,7 +561,7 @@ export function subscribeToFiles(caseId: string, callback: (items: CaseFileItem[
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Files subscription warning on ${path}:`, error);
     }
   );
 }
@@ -584,7 +584,7 @@ export async function addCaseFile(
   };
 
   try {
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanFirestoreData(data));
     await logCaseActivity(
       caseId,
       userProfile,
@@ -637,7 +637,7 @@ export function subscribeToPayments(caseId: string, callback: (items: PaymentRec
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Payments subscription warning on ${path}:`, error);
     }
   );
 }
@@ -661,19 +661,19 @@ export async function addPayment(
   };
 
   try {
-    await setDoc(docRef, data);
+    await setDoc(docRef, cleanFirestoreData(data));
 
     // Recalculate received & pending value on the parent case
     const newReceived = (currentCase.receivedValue || 0) + Number(data.value);
     const newPending = Math.max(0, (currentCase.contractedValue || 0) - newReceived);
 
-    await updateDoc(getCaseDocRef(caseId), {
+    await updateDoc(getCaseDocRef(caseId), cleanFirestoreData({
       receivedValue: newReceived,
       pendingValue: newPending,
       updatedByUid: userProfile.uid,
       updatedByName: userProfile.displayName,
       updatedAt: new Date().toISOString(),
-    });
+    }));
 
     await logCaseActivity(
       caseId,
@@ -704,7 +704,7 @@ export function subscribeToActivityLog(caseId: string, callback: (items: Activit
       callback(list);
     },
     (error) => {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`ActivityLog subscription warning on ${path}:`, error);
     }
   );
 }

@@ -234,7 +234,7 @@ export const ReportTab: React.FC<ReportTabProps> = ({
 
         {/* Institutional Footer */}
         <div className="mt-8 pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400">
-          Documento gerado pelo Sistema Integrado do INIP • Autenticidade verificável nos arquivos centrais • Uso estritamente restrito
+          Documento gerado pelo Sistema Integrado do INIP • Autenticidade verificável nos arquivos centrais • Uso restrito
         </div>
       </div>
     </div>

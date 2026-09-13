@@ -2,7 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { setDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { db, DEFAULT_ORG_ID } from './firebase';
+import { db, DEFAULT_ORG_ID, cleanFirestoreData } from './firebase';
 import { UserProfile, UserRole } from '../types';
 
 export const SUPER_ADMIN_EMAIL = 'jairosenna14@gmail.com';
@@ -46,7 +46,7 @@ export async function createMemberUser(params: {
     };
 
     // Salva perfil no Firestore da organização
-    await setDoc(doc(db, 'organizations', DEFAULT_ORG_ID, 'users', uid), newProfile);
+    await setDoc(doc(db, 'organizations', DEFAULT_ORG_ID, 'users', uid), cleanFirestoreData(newProfile));
 
     // Se for administrador, adiciona também na coleção de segurança /admins
     if (params.role === 'admin') {

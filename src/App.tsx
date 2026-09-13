@@ -42,9 +42,11 @@ function AppContent() {
     if (isDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('inip_theme', 'dark');
+      localStorage.setItem('inip-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('inip_theme', 'light');
+      localStorage.setItem('inip-theme', 'light');
     }
   }, [isDark]);
 
