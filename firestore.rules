@@ -11,12 +11,20 @@ service cloud.firestore {
         allow read, write: if true;
       }
       
+      match /tools/{toolId} {
+        allow read, write: if true;
+      }
+      
       match /cases/{caseId} {
         allow read, write: if true;
         
         match /{subcollection=**} {
           allow read, write: if true;
         }
+      }
+
+      match /{subcollection=**} {
+        allow read, write: if true;
       }
     }
     

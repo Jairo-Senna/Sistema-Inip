@@ -4,6 +4,7 @@ import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { CaseDetailPage } from './pages/CaseDetailPage';
 import { Header } from './components/common/Header';
+import { ToolsManagementView } from './components/tools/ToolsManagementView';
 import { NewCaseModal } from './components/cases/NewCaseModal';
 import { UsersManagementModal } from './components/admin/UsersManagementModal';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
@@ -13,9 +14,10 @@ import { getEffectiveLogoUrl } from './utils/logo';
 
 function AppContent() {
   const { currentUser, userProfile, loading } = useAuth();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'case-detail'>(() => {
+  const [currentView, setCurrentView] = useState<'dashboard' | 'case-detail' | 'tools'>(() => {
     const saved = localStorage.getItem('inip_active_view');
     const savedCase = localStorage.getItem('inip_active_case_id');
+    if (saved === 'tools') return 'tools';
     return saved === 'case-detail' && savedCase ? 'case-detail' : 'dashboard';
   });
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(() => {
@@ -113,6 +115,11 @@ function AppContent() {
     localStorage.setItem('inip_active_view', 'dashboard');
   };
 
+  const handleNavigateTools = () => {
+    setCurrentView('tools');
+    localStorage.setItem('inip_active_view', 'tools');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
       {/* Header */}
@@ -125,6 +132,8 @@ function AppContent() {
         onToggleTheme={() => setIsDark(!isDark)}
         customLogoUrl={customLogoUrl}
         onNavigateHome={handleBackToDashboard}
+        onNavigateTools={handleNavigateTools}
+        currentView={currentView}
       />
 
       {/* Main Container */}
@@ -133,8 +142,11 @@ function AppContent() {
           <DashboardPage
             onSelectCase={handleSelectCase}
             onOpenNewCase={() => setNewCaseModalOpen(true)}
+            onNavigateTools={handleNavigateTools}
             customLogoUrl={customLogoUrl}
           />
+        ) : currentView === 'tools' ? (
+          <ToolsManagementView onBackToDashboard={handleBackToDashboard} />
         ) : selectedCaseId ? (
           <CaseDetailPage
             caseId={selectedCaseId}
@@ -142,7 +154,14 @@ function AppContent() {
             onBackToDashboard={handleBackToDashboard}
             customLogoUrl={customLogoUrl}
           />
-        ) : null}
+        ) : (
+          <DashboardPage
+            onSelectCase={handleSelectCase}
+            onOpenNewCase={() => setNewCaseModalOpen(true)}
+            onNavigateTools={handleNavigateTools}
+            customLogoUrl={customLogoUrl}
+          />
+        )}
       </main>
 
       {/* Modals */}

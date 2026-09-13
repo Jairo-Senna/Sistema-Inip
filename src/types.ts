@@ -196,3 +196,15 @@ export interface GlobalSearchResult {
   subtitle: string;
   categoryBadge?: string;
 }
+
+export interface ToolLink {
+  id: string;
+  name: string;
+  url: string;
+  category?: string;
+  description?: string;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt?: string;
+}

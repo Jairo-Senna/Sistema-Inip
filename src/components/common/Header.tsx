@@ -12,7 +12,9 @@ import {
   ChevronDown,
   UploadCloud,
   FileSpreadsheet,
-  Plus
+  Plus,
+  Globe,
+  Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { InipLogo } from './InipLogo';
@@ -26,6 +28,8 @@ interface HeaderProps {
   onOpenUsers?: () => void;
   onSelectDashboard?: () => void;
   onNavigateHome?: () => void;
+  onNavigateTools?: () => void;
+  currentView?: 'dashboard' | 'case-detail' | 'tools';
   customLogoUrl?: string;
   onUpdateLogoUrl?: (url: string) => void;
   isDark?: boolean;
@@ -39,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenUsers,
   onSelectDashboard,
   onNavigateHome,
+  onNavigateTools,
+  currentView = 'dashboard',
   customLogoUrl,
   onUpdateLogoUrl,
   isDark,
@@ -167,17 +173,47 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Brand Logo & Name */}
-        <button
-          onClick={handleNavigateDashboard}
-          className="flex items-center gap-2 hover:opacity-95 transition text-left focus:outline-none"
-          title="Ir para o Dashboard Principal"
-        >
-          <InipLogo size="md" customLogoUrl={customLogoUrl} />
-        </button>
+        {/* Brand Logo & Main Nav */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleNavigateDashboard}
+            className="flex items-center gap-2 hover:opacity-95 transition text-left focus:outline-none"
+            title="Ir para o Dashboard Principal"
+          >
+            <InipLogo size="md" customLogoUrl={customLogoUrl} />
+          </button>
+
+          {/* Nav Tabs for Casos and Ferramentas */}
+          <nav className="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 ml-1">
+            <button
+              onClick={handleNavigateDashboard}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                currentView === 'dashboard' || currentView === 'case-detail'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              id="header-nav-cases"
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Casos</span>
+            </button>
+            <button
+              onClick={onNavigateTools}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                currentView === 'tools'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              id="header-nav-tools"
+            >
+              <Globe className="w-3.5 h-3.5 text-sky-500" />
+              <span>Ferramentas</span>
+            </button>
+          </nav>
+        </div>
 
         {/* Global Search Bar (Center) */}
-        <div className="flex-1 max-w-lg hidden sm:block">
+        <div className="flex-1 max-w-md hidden lg:block">
           <button
             onClick={onOpenSearch}
             className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/70 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700/60 transition shadow-inner group"
@@ -193,7 +229,21 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Tools & Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
+          {/* Mobile & Tablet Tools Button */}
+          <button
+            onClick={onNavigateTools}
+            className={`inline-flex md:hidden items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-lg transition ${
+              currentView === 'tools'
+                ? 'bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30'
+                : 'text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800'
+            }`}
+            title="Ferramentas & Plataformas de Pesquisa"
+            id="btn-header-tools-mobile"
+          >
+            <Globe className="w-3.5 h-3.5 text-sky-500" />
+            <span className="hidden xs:inline">Ferramentas</span>
+          </button>
           {/* Mobile Search Button */}
           <button
             onClick={onOpenSearch}
@@ -286,6 +336,17 @@ export const Header: React.FC<HeaderProps> = ({
 
                 {/* Actions */}
                 <div className="p-1 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      onNavigateTools?.();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                  >
+                    <Globe className="w-4 h-4 text-sky-500" />
+                    Ferramentas & Links de Pesquisa
+                  </button>
+
                   {isAdmin && (
                     <button
                       onClick={handleOpenUsers}
