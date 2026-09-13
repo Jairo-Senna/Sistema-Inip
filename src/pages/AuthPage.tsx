@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { InipLogo } from '../components/common/InipLogo';
 import { UserRole } from '../types';
+import { getEffectiveLogoUrl, DEFAULT_INIP_LOGO } from '../utils/logo';
 
 interface AuthPageProps {
   customLogoUrl?: string;
@@ -23,6 +24,12 @@ interface AuthPageProps {
 export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
   const { loginWithEmail, loginWithGoogle, registerWithEmail, resetPassword } = useAuth();
   
+  const [logoSrc, setLogoSrc] = useState<string>(() => {
+    const saved = customLogoUrl || localStorage.getItem('inip_custom_logo') || localStorage.getItem('inip-custom-logo');
+    return getEffectiveLogoUrl(saved);
+  });
+  const [logoFailed, setLogoFailed] = useState(false);
+
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [isResetMode, setIsResetMode] = useState(false);
   
@@ -147,13 +154,33 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
       <div className="w-full max-w-md mx-auto relative z-10">
         {/* INIP Header Card */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center p-3.5 mb-3 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-amber-500/30 shadow-2xl shadow-amber-950/30 backdrop-blur-md group">
-            <img 
-              src="/logo.png" 
-              alt="INIP – Instituto de Investigação e Perícia" 
-              className="w-24 h-24 sm:w-28 sm:h-28 object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)] transform group-hover:scale-105 transition-transform duration-300"
-              referrerPolicy="no-referrer"
-            />
+          <div className="inline-flex items-center justify-center p-3.5 mb-3 bg-gradient-to-b from-slate-900/95 to-slate-950/95 rounded-2xl border border-amber-500/30 shadow-2xl shadow-amber-950/30 backdrop-blur-md group overflow-hidden">
+            {!logoFailed ? (
+              <img 
+                src={logoSrc} 
+                alt="INIP – Instituto de Investigação e Perícia" 
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.6)] transform group-hover:scale-105 transition-transform duration-300"
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  if (logoSrc !== DEFAULT_INIP_LOGO) {
+                    setLogoSrc(DEFAULT_INIP_LOGO);
+                  } else {
+                    setLogoFailed(true);
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center rounded-2xl bg-gradient-to-br from-amber-600 via-yellow-700 to-amber-900 p-3">
+                <svg viewBox="0 0 48 48" fill="none" className="w-full h-full text-amber-200">
+                  <path d="M24 4L40 10V22C40 33 33 41 24 44C15 41 8 33 8 22V10L24 4Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="24" cy="23" r="9" stroke="#fef08a" strokeWidth="2" strokeDasharray="4 2" />
+                  <circle cx="24" cy="23" r="4.5" fill="#ca8a04" />
+                  <line x1="24" y1="11" x2="24" y2="35" stroke="#fef9c3" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="12" y1="23" x2="36" y2="23" stroke="#fef9c3" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="24" cy="23" r="1.5" fill="#ffffff" />
+                </svg>
+              </div>
+            )}
           </div>
           <h1 className="text-2xl font-black tracking-wider text-white uppercase">
             INIP

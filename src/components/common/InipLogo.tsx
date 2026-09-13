@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getEffectiveLogoUrl, DEFAULT_INIP_LOGO } from '../../utils/logo';
 
 interface InipLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -13,8 +14,23 @@ export const InipLogo: React.FC<InipLogoProps> = ({
   customLogoUrl,
   className = '',
 }) => {
-  const [imageError, setImageError] = useState(false);
-  const resolvedLogoUrl = (!imageError && (customLogoUrl || '/logo.png')) || '';
+  const [logoSrc, setLogoSrc] = useState<string>(() => getEffectiveLogoUrl(customLogoUrl));
+  const [useSvgFallback, setUseSvgFallback] = useState(false);
+
+  useEffect(() => {
+    setLogoSrc(getEffectiveLogoUrl(customLogoUrl));
+    setUseSvgFallback(false);
+  }, [customLogoUrl]);
+
+  const handleImageError = () => {
+    if (logoSrc !== DEFAULT_INIP_LOGO) {
+      // Fallback to bundled asset
+      setLogoSrc(DEFAULT_INIP_LOGO);
+    } else {
+      // If bundled asset also fails, fall back to SVG emblem
+      setUseSvgFallback(true);
+    }
+  };
 
   const sizeMap = {
     xs: { icon: 'w-6 h-6', text: 'text-xs', sub: 'text-[8px]' },
@@ -28,14 +44,14 @@ export const InipLogo: React.FC<InipLogoProps> = ({
 
   return (
     <div className={`flex items-center gap-3 ${className}`} id="inip-brand-logo">
-      {resolvedLogoUrl ? (
+      {!useSvgFallback ? (
         <div className={`relative ${dim.icon} flex-shrink-0 flex items-center justify-center`}>
           <img
-            src={resolvedLogoUrl}
+            src={logoSrc}
             alt="INIP – Instituto de Investigação e Perícia"
             className="w-full h-full object-contain filter drop-shadow-md"
             referrerPolicy="no-referrer"
-            onError={() => setImageError(true)}
+            onError={handleImageError}
           />
         </div>
       ) : (

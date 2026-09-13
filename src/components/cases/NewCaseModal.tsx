@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Briefcase, DollarSign, Calendar, AlertTriangle, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { createCase } from '../../services/casesService';
@@ -36,12 +36,33 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({
   const [observations, setObservations] = useState('');
 
   // Finances
-  const [contractedValue, setContractedValue] = useState<number>(0);
-  const [receivedValue, setReceivedValue] = useState<number>(0);
+  const [contractedValue, setContractedValue] = useState<string>('');
+  const [receivedValue, setReceivedValue] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState('Transferência Bancária / PIX');
   const [financialNotes, setFinancialNotes] = useState('');
 
-  const pendingValue = Math.max(0, (Number(contractedValue) || 0) - (Number(receivedValue) || 0));
+  useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      setCode(`INIP-${currentYear}-${String(existingCount + 1).padStart(3, '0')}`);
+      setClientName('');
+      setOpeningDate(new Date().toISOString().split('T')[0]);
+      setPriority('media');
+      setStatus('em_andamento');
+      setDescription('');
+      setObjective('');
+      setObservations('');
+      setContractedValue('');
+      setReceivedValue('');
+      setPaymentMethod('Transferência Bancária / PIX');
+      setFinancialNotes('');
+      setErrorMsg(null);
+    }
+  }, [isOpen, existingCount]);
+
+  const numContracted = parseFloat(contractedValue.replace(',', '.')) || 0;
+  const numReceived = parseFloat(receivedValue.replace(',', '.')) || 0;
+  const pendingValue = Math.max(0, numContracted - numReceived);
 
   if (!isOpen) return null;
 
@@ -68,8 +89,8 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({
           description: description.trim(),
           objective: objective.trim(),
           observations: observations.trim(),
-          contractedValue: Number(contractedValue) || 0,
-          receivedValue: Number(receivedValue) || 0,
+          contractedValue: numContracted,
+          receivedValue: numReceived,
           paymentMethod,
           financialNotes,
         },
@@ -280,9 +301,10 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
+                  placeholder="0,00"
                   value={contractedValue}
-                  onChange={(e) => setContractedValue(Number(e.target.value))}
+                  onChange={(e) => setContractedValue(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
@@ -294,9 +316,10 @@ export const NewCaseModal: React.FC<NewCaseModalProps> = ({
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  step="any"
+                  placeholder="0,00"
                   value={receivedValue}
-                  onChange={(e) => setReceivedValue(Number(e.target.value))}
+                  onChange={(e) => setReceivedValue(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>

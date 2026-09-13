@@ -24,6 +24,7 @@ import {
 import { CaseData, CaseStatus, CasePriority } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { getAllCases } from '../services/casesService';
+import { getEffectiveLogoUrl, DEFAULT_INIP_LOGO } from '../utils/logo';
 
 interface DashboardPageProps {
   onSelectCase: (caseId: string, initialTab?: string) => void;
@@ -45,6 +46,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [priorityFilter, setPriorityFilter] = useState<string>('todos');
   const [viewLayout, setViewLayout] = useState<'table' | 'cards'>('table');
+  const [logoSrc, setLogoSrc] = useState<string>(() => getEffectiveLogoUrl(customLogoUrl));
+  const [logoFailed, setLogoFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoSrc(getEffectiveLogoUrl(customLogoUrl));
+    setLogoFailed(false);
+  }, [customLogoUrl]);
+
+  const handleHeroLogoError = () => {
+    if (logoSrc !== DEFAULT_INIP_LOGO) {
+      setLogoSrc(DEFAULT_INIP_LOGO);
+    } else {
+      setLogoFailed(true);
+    }
+  };
 
   const fetchCases = async () => {
     setLoading(true);
@@ -164,13 +180,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white border border-slate-800 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-5 relative overflow-hidden">
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none" />
         <div className="flex items-center gap-4.5 z-10 w-full sm:w-auto">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 flex items-center justify-center p-1.5 bg-slate-950/80 rounded-2xl border border-amber-500/30 shadow-lg shadow-black/40">
-            <img 
-              src={customLogoUrl || "/logo.png"} 
-              alt="INIP – Instituto de Investigação e Perícia" 
-              className="w-full h-full object-contain filter drop-shadow-md"
-              referrerPolicy="no-referrer"
-            />
+          <div className="w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 flex items-center justify-center p-1.5 bg-slate-950/80 rounded-2xl border border-amber-500/30 shadow-lg shadow-black/40 overflow-hidden">
+            {!logoFailed ? (
+              <img 
+                src={logoSrc} 
+                alt="INIP – Instituto de Investigação e Perícia" 
+                className="w-full h-full object-contain filter drop-shadow-md"
+                referrerPolicy="no-referrer"
+                onError={handleHeroLogoError}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center rounded-xl bg-gradient-to-br from-amber-600 via-yellow-700 to-amber-900 p-2">
+                <svg viewBox="0 0 48 48" fill="none" className="w-full h-full text-amber-200">
+                  <path d="M24 4L40 10V22C40 33 33 41 24 44C15 41 8 33 8 22V10L24 4Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="24" cy="23" r="9" stroke="#fef08a" strokeWidth="2" strokeDasharray="4 2" />
+                  <circle cx="24" cy="23" r="4.5" fill="#ca8a04" />
+                  <line x1="24" y1="11" x2="24" y2="35" stroke="#fef9c3" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="12" y1="23" x2="36" y2="23" stroke="#fef9c3" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="24" cy="23" r="1.5" fill="#ffffff" />
+                </svg>
+              </div>
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2">

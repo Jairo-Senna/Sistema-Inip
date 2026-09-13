@@ -30,8 +30,12 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({
   const [observations, setObservations] = useState(caseData.observations || '');
 
   // Finances
-  const [contractedValue, setContractedValue] = useState<number>(caseData.contractedValue || 0);
-  const [receivedValue, setReceivedValue] = useState<number>(caseData.receivedValue || 0);
+  const [contractedValue, setContractedValue] = useState<string>(
+    caseData.contractedValue ? String(caseData.contractedValue) : ''
+  );
+  const [receivedValue, setReceivedValue] = useState<string>(
+    caseData.receivedValue ? String(caseData.receivedValue) : ''
+  );
   const [paymentMethod, setPaymentMethod] = useState(caseData.paymentMethod || '');
   const [financialNotes, setFinancialNotes] = useState(caseData.financialNotes || '');
 
@@ -44,6 +48,9 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({
 
     setLoading(true);
     try {
+      const numContracted = parseFloat(contractedValue.replace(',', '.')) || 0;
+      const numReceived = parseFloat(receivedValue.replace(',', '.')) || 0;
+
       await updateCase(
         caseData.id,
         {
@@ -56,8 +63,8 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({
           observations: observations.trim(),
           ...(canEditFinances
             ? {
-                contractedValue: Number(contractedValue) || 0,
-                receivedValue: Number(receivedValue) || 0,
+                contractedValue: numContracted,
+                receivedValue: numReceived,
                 paymentMethod,
                 financialNotes,
               }
@@ -219,8 +226,10 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({
                 <input
                   type="number"
                   min="0"
+                  step="any"
+                  placeholder="0,00"
                   value={contractedValue}
-                  onChange={(e) => setContractedValue(Number(e.target.value))}
+                  onChange={(e) => setContractedValue(e.target.value)}
                   className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
                 />
               </div>

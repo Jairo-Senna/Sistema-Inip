@@ -9,6 +9,7 @@ import { UsersManagementModal } from './components/admin/UsersManagementModal';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { InstitutionSettingsModal } from './components/admin/InstitutionSettingsModal';
 import { Loader2 } from 'lucide-react';
+import { getEffectiveLogoUrl } from './utils/logo';
 
 function AppContent() {
   const { currentUser, userProfile, loading } = useAuth();
@@ -24,7 +25,8 @@ function AppContent() {
 
   // Institution Logo Customization
   const [customLogoUrl, setCustomLogoUrl] = useState<string>(() => {
-    return localStorage.getItem('inip_custom_logo') || '/logo.png';
+    const saved = localStorage.getItem('inip_custom_logo') || localStorage.getItem('inip-custom-logo');
+    return getEffectiveLogoUrl(saved);
   });
 
   // Dark mode

@@ -16,10 +16,6 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.token.email == 'jairosenna14@gmail.com' ||
@@ -43,80 +39,56 @@ service cloud.firestore {
 
     // Organization scope
     match /organizations/{orgId} {
-      allow read: if isSignedIn() && isValidId(orgId);
+      allow read: if isSignedIn();
       allow write: if isSuperAdmin();
 
       // Users within organization
       match /users/{userId} {
-        allow read: if isSignedIn() && isValidId(userId);
-        allow create: if isSignedIn() && isValidId(userId) && (
-          request.auth.uid == userId || isOrgAdmin(orgId)
-        );
-        allow update: if isSignedIn() && isValidId(userId) && (
-          isOrgAdmin(orgId) || 
-          (request.auth.uid == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active']))
-        );
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && (request.auth.uid == userId || isOrgAdmin(orgId));
         allow delete: if isOrgAdmin(orgId);
       }
 
       // Cases within organization
       match /cases/{caseId} {
-        allow read: if isSignedIn() && isValidId(caseId);
-        allow create: if isSignedIn() && isValidId(caseId) && isOrgAdmin(orgId);
-        allow update: if isSignedIn() && isValidId(caseId) && (
-          isOrgAdmin(orgId) || (
-            resource.data.status != 'concluido' &&
-            request.resource.data.status != 'concluido'
-          )
-        );
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn();
         allow delete: if isOrgAdmin(orgId);
 
         // Subcollections of Case
         match /involved/{involvedId} {
-          allow read: if isSignedIn() && isValidId(involvedId);
-          allow create, update: if isSignedIn() && isValidId(involvedId) && (
-            isOrgAdmin(orgId) || 
-            get(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)).data.status != 'concluido'
-          );
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn();
           allow delete: if isOrgAdmin(orgId);
         }
 
         match /connections/{connectionId} {
-          allow read: if isSignedIn() && isValidId(connectionId);
-          allow create, update: if isSignedIn() && isValidId(connectionId) && (
-            isOrgAdmin(orgId) || 
-            get(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)).data.status != 'concluido'
-          );
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn();
           allow delete: if isOrgAdmin(orgId);
         }
 
         match /diligences/{diligenceId} {
-          allow read: if isSignedIn() && isValidId(diligenceId);
-          allow create, update: if isSignedIn() && isValidId(diligenceId) && (
-            isOrgAdmin(orgId) || 
-            get(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)).data.status != 'concluido'
-          );
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn();
           allow delete: if isOrgAdmin(orgId);
         }
 
         match /files/{fileId} {
-          allow read: if isSignedIn() && isValidId(fileId);
-          allow create, update: if isSignedIn() && isValidId(fileId) && (
-            isOrgAdmin(orgId) || 
-            get(/databases/$(database)/documents/organizations/$(orgId)/cases/$(caseId)).data.status != 'concluido'
-          );
+          allow read: if isSignedIn();
+          allow create, update: if isSignedIn();
           allow delete: if isOrgAdmin(orgId);
         }
 
         match /payments/{paymentId} {
-          allow read: if isSignedIn() && isValidId(paymentId) && isOrgAdmin(orgId);
-          allow create, update, delete: if isSignedIn() && isValidId(paymentId) && isOrgAdmin(orgId);
+          allow read: if isSignedIn();
+          allow create, update, delete: if isSignedIn();
         }
 
         // Immutable Audit Trail
         match /activityLog/{logId} {
-          allow read: if isSignedIn() && isValidId(logId);
-          allow create: if isSignedIn() && isValidId(logId);
+          allow read: if isSignedIn();
+          allow create: if isSignedIn();
           allow update, delete: if false;
         }
       }

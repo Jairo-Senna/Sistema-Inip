@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { InipLogo } from './InipLogo';
 import { compressImage } from '../../utils/imageCompressor';
+import { getEffectiveLogoUrl } from '../../utils/logo';
 
 interface HeaderProps {
   onOpenSearch: () => void;
@@ -46,7 +47,11 @@ export const Header: React.FC<HeaderProps> = ({
   const [darkMode, setDarkMode] = useState(true);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [tempLogoUrl, setTempLogoUrl] = useState(customLogoUrl || '/logo.png');
+  const [tempLogoUrl, setTempLogoUrl] = useState(() => getEffectiveLogoUrl(customLogoUrl));
+
+  useEffect(() => {
+    setTempLogoUrl(getEffectiveLogoUrl(customLogoUrl));
+  }, [customLogoUrl]);
 
   const handleNavigateDashboard = () => {
     if (onNavigateHome) onNavigateHome();
@@ -84,8 +89,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleSaveLogo = () => {
     if (onUpdateLogoUrl) {
-      onUpdateLogoUrl(tempLogoUrl.trim());
-      localStorage.setItem('inip-custom-logo', tempLogoUrl.trim());
+      const cleanUrl = tempLogoUrl.trim();
+      onUpdateLogoUrl(cleanUrl);
+      localStorage.setItem('inip_custom_logo', cleanUrl);
+      localStorage.setItem('inip-custom-logo', cleanUrl);
     }
     setSettingsModalOpen(false);
   };
@@ -145,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="flex items-center gap-2 hover:opacity-95 transition text-left focus:outline-none"
           title="Ir para o Dashboard Principal"
         >
-          <InipLogo size="md" customLogoUrl={customLogoUrl || '/logo.png'} />
+          <InipLogo size="md" customLogoUrl={customLogoUrl} />
         </button>
 
         {/* Global Search Bar (Center) */}

@@ -101,17 +101,17 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
       }
       setCaseData(c);
 
-      const [invList, connList, dilList, filesList] = await Promise.all([
+      const [invRes, connRes, dilRes, filesRes] = await Promise.allSettled([
         getInvolvedByCase(caseId),
         getConnectionsByCase(caseId),
         getDiligencesByCase(caseId),
         getFilesByCase(caseId),
       ]);
 
-      setInvolved(invList);
-      setConnections(connList);
-      setDiligences(dilList);
-      setFiles(filesList);
+      setInvolved(invRes.status === 'fulfilled' ? invRes.value : []);
+      setConnections(connRes.status === 'fulfilled' ? connRes.value : []);
+      setDiligences(dilRes.status === 'fulfilled' ? dilRes.value : []);
+      setFiles(filesRes.status === 'fulfilled' ? filesRes.value : []);
     } catch (err: any) {
       console.error('Failed to load case data:', err);
       setErrorMsg('Falha de conexão com a base de dados: ' + err.message);
