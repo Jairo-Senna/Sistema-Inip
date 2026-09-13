@@ -36,13 +36,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+    setShowRegisterPrompt(false);
 
-    if (!email) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
       setErrorMsg('Informe o seu endereço de e-mail institucional.');
       return;
     }
@@ -50,7 +53,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
     if (isResetMode) {
       setLoading(true);
       try {
-        await resetPassword(email);
+        await resetPassword(cleanEmail);
         setSuccessMsg('E-mail de redefinição enviado! Verifique sua caixa de entrada.');
       } catch (err: any) {
         console.error('Password reset error:', err);
@@ -78,11 +81,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
 
       setLoading(true);
       try {
-        await registerWithEmail(email, password, name, role, badgeNumber);
+        await registerWithEmail(cleanEmail, password, name.trim(), role, badgeNumber.trim());
       } catch (err: any) {
         console.error('Register error:', err);
         if (err.code === 'auth/email-already-in-use') {
           setErrorMsg('Este e-mail já está cadastrado. Realize o login ou recupere sua senha.');
+        } else if (err.code === 'auth/operation-not-allowed') {
+          setErrorMsg('O método de E-mail/Senha não está ativado no Firebase Console (Authentication > Sign-in method).');
         } else {
           setErrorMsg('Erro no cadastramento: ' + (err.message || 'Verifique as informações.'));
         }
@@ -93,13 +98,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
       // Login mode
       setLoading(true);
       try {
-        await loginWithEmail(email, password);
+        await loginWithEmail(cleanEmail, password);
       } catch (err: any) {
         console.error('Login error:', err);
-        if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-          setErrorMsg('Credenciais incorretas. Verifique seu e-mail e senha.');
+        if (
+          err.code === 'auth/wrong-password' || 
+          err.code === 'auth/user-not-found' || 
+          err.code === 'auth/invalid-credential' ||
+          err.code === 'auth/invalid-login-credentials'
+        ) {
+          setErrorMsg('E-mail ou senha incorretos.');
+          setShowRegisterPrompt(true);
         } else if (err.code === 'auth/too-many-requests') {
           setErrorMsg('Muitas tentativas sem sucesso. Aguarde alguns instantes antes de tentar novamente.');
+        } else if (err.code === 'auth/operation-not-allowed') {
+          setErrorMsg('O método de E-mail/Senha não está ativado no seu Firebase Console (Authentication > Sign-in method).');
         } else {
           setErrorMsg('Falha na autenticação: ' + (err.message || 'Erro de conexão com o servidor.'));
         }
@@ -216,9 +229,30 @@ export const AuthPage: React.FC<AuthPageProps> = ({ customLogoUrl }) => {
 
           {/* Alert Messages */}
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex flex-col gap-2 animate-in fade-in">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{errorMsg}</span>
+              </div>
+              {showRegisterPrompt && !isRegisterMode && (
+                <div className="mt-1 pt-2 border-t border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-300">
+                    Ainda não possui cadastro com este e-mail?
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsRegisterMode(true);
+                      setErrorMsg(null);
+                      setShowRegisterPrompt(false);
+                    }}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold transition cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Criar conta agora</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
