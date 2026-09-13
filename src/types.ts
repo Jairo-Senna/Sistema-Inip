@@ -44,6 +44,13 @@ export interface CaseData {
   updatedByName: string;
   createdAt: string;
   updatedAt: string;
+  involved?: InvolvedEntity[];
+  connections?: CaseConnection[];
+  diligences?: Diligence[];
+  files?: CaseFileItem[];
+  payments?: PaymentRecord[];
+  activityLog?: ActivityLogItem[];
+  auditTrail?: any[];
 }
 
 export type InvolvedType = 

@@ -29,15 +29,8 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { 
   getCaseById, 
-  getInvolvedByCase, 
-  getConnectionsByCase, 
-  getDiligencesByCase, 
-  getFilesByCase,
   deleteCase,
-  subscribeToInvolved,
-  subscribeToConnections,
-  subscribeToDiligences,
-  subscribeToFiles
+  subscribeToCaseDetail
 } from '../services/casesService';
 
 import { OverviewTab } from '../components/cases/tabs/OverviewTab';
@@ -95,60 +88,58 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
     }
   };
 
-  const loadAllData = async () => {
+  const refreshData = async () => {
     try {
       const c = await getCaseById(caseId);
-      if (!c) {
-        setErrorMsg('Caso não localizado ou indisponível.');
-        setLoading(false);
-        return;
+      if (c) {
+        setCaseData(c);
+        setInvolved(c.involved || []);
+        setConnections(c.connections || []);
+        setDiligences(c.diligences || []);
+        setFiles(c.files || []);
       }
-      setCaseData(c);
-
-      const [invRes, connRes, dilRes, filesRes] = await Promise.allSettled([
-        getInvolvedByCase(caseId),
-        getConnectionsByCase(caseId),
-        getDiligencesByCase(caseId),
-        getFilesByCase(caseId),
-      ]);
-
-      setInvolved(invRes.status === 'fulfilled' ? invRes.value : []);
-      setConnections(connRes.status === 'fulfilled' ? connRes.value : []);
-      setDiligences(dilRes.status === 'fulfilled' ? dilRes.value : []);
-      setFiles(filesRes.status === 'fulfilled' ? filesRes.value : []);
-    } catch (err: any) {
-      console.error('Failed to load case data:', err);
-      setErrorMsg('Falha de conexão com a base de dados: ' + err.message);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.warn('Refresh error:', e);
     }
   };
 
   useEffect(() => {
-    loadAllData();
-  }, [caseId]);
+    setLoading(true);
+    setErrorMsg(null);
 
-  // Real-time synchronization for subcollections so all tabs update immediately
-  useEffect(() => {
-    if (!caseId) return;
-    const unsubInvolved = subscribeToInvolved(caseId, (items) => {
-      setInvolved(items);
-    });
-    const unsubConn = subscribeToConnections(caseId, (items) => {
-      setConnections(items);
-    });
-    const unsubDil = subscribeToDiligences(caseId, (items) => {
-      setDiligences(items);
-    });
-    const unsubFiles = subscribeToFiles(caseId, (items) => {
-      setFiles(items);
-    });
+    const unsub = subscribeToCaseDetail(
+      caseId,
+      (c, inv, conn, dil, fil) => {
+        setCaseData(c);
+        setInvolved(inv);
+        setConnections(conn);
+        setDiligences(dil);
+        setFiles(fil);
+        setLoading(false);
+      },
+      (err) => {
+        console.warn('Real-time subscription notice:', err);
+      }
+    );
+
+    // Initial explicit fetch to ensure immediate display
+    getCaseById(caseId)
+      .then((c) => {
+        if (c) {
+          setCaseData(c);
+          setInvolved(c.involved || []);
+          setConnections(c.connections || []);
+          setDiligences(c.diligences || []);
+          setFiles(c.files || []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial load error:', err);
+      });
 
     return () => {
-      unsubInvolved();
-      unsubConn();
-      unsubDil();
-      unsubFiles();
+      unsub();
     };
   }, [caseId]);
 
@@ -398,7 +389,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
             involved={involved}
             diligences={diligences}
             files={files}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
             onNavigateTab={(tab) => setActiveTab(tab)}
           />
         )}
@@ -407,7 +398,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
           <InvolvedTab
             caseData={caseData}
             involved={involved}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
           />
         )}
 
@@ -416,7 +407,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
             caseData={caseData}
             involved={involved}
             connections={connections}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
           />
         )}
 
@@ -424,7 +415,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
           <DiligencesTab
             caseData={caseData}
             diligences={diligences}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
           />
         )}
 
@@ -434,7 +425,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
             files={files}
             involved={involved}
             diligences={diligences}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
           />
         )}
 
@@ -446,7 +437,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
           <FinancialTab
             caseData={caseData}
             files={files}
-            onRefresh={loadAllData}
+            onRefresh={refreshData}
           />
         )}
 
@@ -467,7 +458,7 @@ export const CaseDetailPage: React.FC<CaseDetailPageProps> = ({
           isOpen={editModalOpen}
           onClose={() => setEditModalOpen(false)}
           caseData={caseData}
-          onUpdated={loadAllData}
+          onUpdated={refreshData}
         />
       )}
     </div>

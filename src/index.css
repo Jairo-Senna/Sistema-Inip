@@ -1,3 +1,60 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force light theme on paper regardless of active dark mode */
+  .dark {
+    color-scheme: light !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .dark * {
+    border-color: #cbd5e1 !important;
+    background-color: transparent !important;
+    color: #0f172a !important;
+  }
+
+  /* Force paper card elements to retain clean white and light gray backgrounds */
+  .print-paper,
+  .print-paper * {
+    background-color: initial !important;
+  }
+
+  /* Hide navigation, buttons, controls and any element with print:hidden */
+  header,
+  nav,
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Avoid awkward page break cuts inside rows and cards */
+  .print-avoid-break,
+  tr,
+  .report-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+}

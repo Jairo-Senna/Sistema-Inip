@@ -13,9 +13,17 @@ import { getEffectiveLogoUrl } from './utils/logo';
 
 function AppContent() {
   const { currentUser, userProfile, loading } = useAuth();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'case-detail'>('dashboard');
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const [selectedTab, setSelectedTab] = useState<string>('overview');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'case-detail'>(() => {
+    const saved = localStorage.getItem('inip_active_view');
+    const savedCase = localStorage.getItem('inip_active_case_id');
+    return saved === 'case-detail' && savedCase ? 'case-detail' : 'dashboard';
+  });
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(() => {
+    return localStorage.getItem('inip_active_case_id') || null;
+  });
+  const [selectedTab, setSelectedTab] = useState<string>(() => {
+    return localStorage.getItem('inip_active_tab') || 'overview';
+  });
 
   // Modals
   const [newCaseModalOpen, setNewCaseModalOpen] = useState(false);
@@ -85,6 +93,9 @@ function AppContent() {
     setSelectedCaseId(caseId);
     setSelectedTab(initialTab);
     setCurrentView('case-detail');
+    localStorage.setItem('inip_active_case_id', caseId);
+    localStorage.setItem('inip_active_tab', initialTab);
+    localStorage.setItem('inip_active_view', 'case-detail');
   };
 
   const handleCaseCreated = (caseId: string) => {
@@ -92,6 +103,14 @@ function AppContent() {
     setSelectedCaseId(caseId);
     setSelectedTab('overview');
     setCurrentView('case-detail');
+    localStorage.setItem('inip_active_case_id', caseId);
+    localStorage.setItem('inip_active_tab', 'overview');
+    localStorage.setItem('inip_active_view', 'case-detail');
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+    localStorage.setItem('inip_active_view', 'dashboard');
   };
 
   return (
@@ -105,11 +124,11 @@ function AppContent() {
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
         customLogoUrl={customLogoUrl}
-        onNavigateHome={() => setCurrentView('dashboard')}
+        onNavigateHome={handleBackToDashboard}
       />
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 print:p-0 print:m-0 print:max-w-none">
         {currentView === 'dashboard' ? (
           <DashboardPage
             onSelectCase={handleSelectCase}
@@ -120,7 +139,7 @@ function AppContent() {
           <CaseDetailPage
             caseId={selectedCaseId}
             initialTab={selectedTab}
-            onBackToDashboard={() => setCurrentView('dashboard')}
+            onBackToDashboard={handleBackToDashboard}
             customLogoUrl={customLogoUrl}
           />
         ) : null}
